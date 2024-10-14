@@ -66,15 +66,15 @@ class SearchItem
   def to_launcher_s
     case @type
     when :bookmark
-      "B #{@title.strip} <#{@url.strip}>"
+      "B #{@title} <#{@url}>"
     when :history
       if @date
-        "H #{@title.strip} <#{@url.strip}> (#{@date.strip})"
+        "H #{@title} <#{@url}> (#{@date})"
       else
-        "H #{@title.strip} <#{@url.strip}>"
+        "H #{@title} <#{@url}>"
       end
     when :search_engine
-      "S #{@title.strip}: "
+      "#{@title.strip}: "
     end
   end
 
@@ -89,7 +89,7 @@ class SearchItem
   end
 
   def self.parse_search_term(str)
-    return unless str[0] == 'S'
+    return if str[0] == 'H' or str[0] == 'B'
 
     parts = str.lsplit ':'
 
@@ -99,12 +99,12 @@ class SearchItem
   end
 
   def self.parse_search_engine(str)
-    return unless str[0] == 'S'
+    return if str[0] == 'H' or str[0] == 'B'
 
     parts = str.lsplit ':'
 
     if parts.length > 1
-      parts[0].strip.gsub('S ', '')
+      parts[0].strip
     end
   end
 end
@@ -242,6 +242,7 @@ def info
       ---------
       bookmarks: #{b.bookmarks.length}
       history items: #{b.history.length}
+
     TEXT
   end
 end

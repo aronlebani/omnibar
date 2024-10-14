@@ -39,13 +39,13 @@ class TestSearchItem < Test::Unit::TestCase
 
     assert bookmark.to_launcher_s == 'B example <https://example.com>'
     assert history.to_launcher_s == 'H example <https://example.com> (2024-10-14)'
-    assert search_engine.to_launcher_s == 'S mdn: '
+    assert search_engine.to_launcher_s == 'mdn: '
   end
 
   def test_parse_url
     bookmark = 'B example <https://example.com>'
     history = 'H example <https://example.com> (2024-10-14)'
-    search_engine = 'S mdn: background-color'
+    search_engine = 'mdn: background-color'
 
     assert SearchItem.parse_url(bookmark) == 'https://example.com'
     assert SearchItem.parse_url(history) == 'https://example.com'
@@ -55,7 +55,7 @@ class TestSearchItem < Test::Unit::TestCase
   def test_parse_search_term
     bookmark = 'B example <https://example.com>'
     history = 'H example <https://example.com> (2024-10-14)'
-    search_engine = 'S mdn: background-color'
+    search_engine = 'mdn: background-color'
 
     assert SearchItem.parse_search_term(bookmark) == nil
     assert SearchItem.parse_search_term(history) == nil
@@ -65,7 +65,7 @@ class TestSearchItem < Test::Unit::TestCase
   def test_parse_search_engine
     bookmark = 'B example <https://example.com>'
     history = 'H example <https://example.com> (2024-10-14)'
-    search_engine = 'S mdn: background-color'
+    search_engine = 'mdn: background-color'
 
     assert SearchItem.parse_search_engine(bookmark) == nil
     assert SearchItem.parse_search_engine(history) == nil
@@ -86,8 +86,8 @@ class TestMain < Test::Unit::TestCase
     assert extract_url('file:///home/aron/index.html', search_engines) == 'file:///home/aron/index.html'
     assert extract_url('B example <https://example.com>', search_engines) == 'https://example.com'
     assert extract_url('H example <https://example.com> (2024-10-14)', search_engines) == 'https://example.com'
-    assert extract_url('S clhs: defun', search_engines) == 'http://www.xach.com/clhs?q=defun'
-    assert extract_url('S mdn: hello world', search_engines) == 'https://developer.mozilla.org/en-US/search?q=hello%20world'
+    assert extract_url('clhs: defun', search_engines) == 'http://www.xach.com/clhs?q=defun'
+    assert extract_url('mdn: hello world', search_engines) == 'https://developer.mozilla.org/en-US/search?q=hello%20world'
     assert extract_url('hello world', search_engines) == 'https://html.duckduckgo.com/html?q=hello%20world'
   end
 end
