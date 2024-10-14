@@ -2,6 +2,9 @@
 
 An extensible, browser-agnostic, dmenu omnibar.
 
+**Important:** this software is still in beta. It may be subject to breaking
+changes while I refine it :)
+
 ## Installation
 
 Omnibar is a single-file exectuable written in Ruby. To install it, simply
@@ -9,7 +12,7 @@ clone the repo, and move the `omnibar.rb` file to somewhere in your `$PATH`.
 For example:
 
     git clone https://github.com/aronlebani/omnibar.git
-    mv omnibar/omnibar.rb ~/bin/omnibar
+    cp omnibar/omnibar.rb ~/bin/omnibar
 
 The only runtime dependency is dmenu, which should be available in your systems
 package manager. I think it's also quite straightforward to build from source.
@@ -34,7 +37,7 @@ engine. For example:
 
       mdn = https://developer.mozilla.org/en-US/search?q=%s'
       clhs = http://www.xach.com/clhs?q=%s
-      * = https://html.duckduckgo.com/html?q=%s
+      * = https://duckduckgo.com?q=%s
 
 ### Custom bookmarks
 
@@ -44,6 +47,16 @@ Omnibar also supports a custom bookmarks file. To enable this, create a
     example <https://example.com>
 
 Blank lines and lines starting with `#` are ignored.
+
+### Other feaures
+
+- Anything starting with `localhost` automatically appends `http://` to the
+  start and opens in your browser.
+- Anything typed in that starts with one of these schemes `http://`, `https://`,
+  `file://` is interpreted as a URL and opened directly in your browser.
+- Anything typed which doesn't match any of the above, a history item, a
+  bookmark, or a search engine falls backs to search using default search
+  engine.
 
 ## Extending
 
@@ -55,18 +68,18 @@ browser, simply subclass the `Browser` class, and implement the methods
 an array of `SearchItem` objects. For example:
 
 ```ruby
-class Chrome < Browser
-    self.history
-        get_history_items.map do |item|
-            SearchItem.new item.title, item.url, item.date, :history
-        end
+class Firefox < Browser
+  def self.history
+    get_history_items.map do |item|
+      SearchItem.new item.title, item.url, item.date, :history
     end
+  end
 
-    self.bookmarks
-        get_bookmarks.map do |item|
-            SearchItem.new item.title, item.url, nil, :bookmark
-        end
+  def self.bookmarks
+    get_bookmarks.map do |item|
+      SearchItem.new item.title, item.url, nil, :bookmark
     end
+  end
 end
 ```
 
