@@ -17,12 +17,12 @@ require 'uri'
 
 class String
   def lsplit(char)
-    parts = self.split char
+    parts = split char
     [] << parts[0] << parts[1..].join(char)
   end
 
   def rsplit(char)
-    parts = self.split char
+    parts = split char
     [] << parts[0..-2].join(char) << parts[-1]
   end
 end
@@ -78,33 +78,45 @@ class SearchItem
     end
   end
 
-  def self.parse_url(str)
-    return unless str[0] == 'H' or str[0] == 'B'
+  class << self
+    def parse(str, &block)
+      url = parse_url(str)
+      search_term = parse_search_term(str)
+      search_engine = parse_search_engine(str)
 
-    match = /<(.*)>/.match str
-
-    if match and match.captures.length > 0
-      match.captures[0].strip
+      block.call url, search_term, search_engine
     end
-  end
 
-  def self.parse_search_term(str)
-    return if str[0] == 'H' or str[0] == 'B'
+    private
 
-    parts = str.lsplit ':'
+    def parse_url(str)
+      return unless str[0] == 'H' or str[0] == 'B'
 
-    if parts.length > 1
-      parts[1].strip
+      match = /<(.*)>/.match str
+
+      if match and match.captures.length > 0
+        match.captures[0].strip
+      end
     end
-  end
 
-  def self.parse_search_engine(str)
-    return if str[0] == 'H' or str[0] == 'B'
+    def parse_search_term(str)
+      return if str[0] == 'H' or str[0] == 'B'
 
-    parts = str.lsplit ':'
+      parts = str.lsplit ':'
 
-    if parts.length > 1
-      parts[0].strip
+      if parts.length > 1
+        parts[1].strip
+      end
+    end
+
+    def parse_search_engine(str)
+      return if str[0] == 'H' or str[0] == 'B'
+
+      parts = str.lsplit ':'
+
+      if parts.length > 1
+        parts[0].strip
+      end
     end
   end
 end
@@ -113,16 +125,21 @@ class Browser
   extend Parser
   extend SQLite
 
-  def self.history
-    []
-  end
+  class << self
+    def history = []
+    def bookmarks = []
+    def search_engines = []
 
-  def self.bookmarks
-    []
-  end
+    def all(exclude_bookmarks: false, exclude_history: false)
+      bookmarks = self.subclasses.reduce([]) { |acc, b| acc + b.bookmarks }
+      history = self.subclasses.reduce([]) { |acc, b| acc + b.history}
+      search_engines = self.subclasses.reduce([]) { |acc, b| acc + b.search_engines}
 
-  def self.search_engines
-    []
+      items = search_engines
+      items += bookmarks unless exclude_bookmarks
+      items += history unless exclude_history
+      items
+    end
   end
 end
 
@@ -188,37 +205,34 @@ end
 LAUNCHER = ['dmenu', '-i', '-l', '10', '-p', 'Search:']
 SCHEMES = ['http://', 'https://', 'file://']
 
-def extract_url(str, search_engines)
-  search_engine_prefix = SearchItem.parse_search_engine str
-  search_term = SearchItem.parse_search_term str
-  selected_url = SearchItem.parse_url str
+def extract_url(str, items)
+  search_engines = items.filter { |item| item.type == :search_engine }
 
-  selected_se = search_engines.find { |se| se.title == search_engine_prefix }
-  default_se = search_engines.find { |se| se.title == '*' }
+  SearchItem.parse(str) do |url, st, se|
+    selected_se = search_engines.find { |s| s.title == se }
+    default_se = search_engines.find { |s| s.title == '*' }
 
-  if str.start_with? 'localhost'
-    "http://#{str}"
-  elsif SCHEMES.any? { |scheme| str.start_with? scheme }
-    str
-  elsif selected_se
-    selected_se.url.gsub('%s', URI.encode_uri_component(search_term))
-  elsif selected_url
-    selected_url
-  else
-    default_se.url.gsub('%s', URI.encode_uri_component(str))
+    if str.start_with? 'localhost'
+      "http://#{str}"
+    elsif SCHEMES.any? { |scheme| str.start_with? scheme }
+      str
+    elsif selected_se
+      selected_se.url.gsub('%s', URI.encode_uri_component(st))
+    elsif url
+      url
+    else
+      default_se.url.gsub('%s', URI.encode_uri_component(str))
+    end
   end
 end
 
 def main(opts)
   browser = opts[:browser] || ENV['BROWSER']
 
-  bookmarks = Browser.subclasses.reduce([]) { |acc, b| acc + b.bookmarks }
-  history = Browser.subclasses.reduce([]) { |acc, b| acc + b.history }
-  search_engines = Browser.subclasses.reduce([]) { |acc, b| acc + b.search_engines}
-
-  items = search_engines
-  items += bookmarks unless opts[:"no-bookmarks"]
-  items += history unless opts[:"no-history"]
+  items = Browser.all(
+    exclude_bookmarks: opts[:"exclude-bookmarks"],
+    exclude_history: opts[:"exclude-history"]
+  )
 
   selection = Open3.popen3(*LAUNCHER) do |stdin, stdout|
     stdin.puts items.map { |item| item.to_launcher_s }
@@ -230,7 +244,7 @@ def main(opts)
     end
   end
 
-  url = extract_url(selection, search_engines)
+  url = extract_url(selection, items)
 
   exec "#{browser} #{url}"
 end
@@ -250,13 +264,14 @@ end
 if __FILE__ == $0
   opts = {}
 
-  parser = OptionParser.new
-  parser.banner = 'Usage: omnibar [OPTIONS]'
-  parser.on '--no-bookmarks', 'Exclude bookmarks'
-  parser.on '--no-history', 'Exclude history'
-  parser.on '--info', 'Print info'
-  parser.on '--browser=BROWSER', 'Browser path'
-  parser.parse! into: opts
+  OptionParser.new do |p|
+    p.banner = 'Usage: omnibar [OPTIONS]'
+    p.on '--exclude-bookmarks', 'Exclude bookmarks'
+    p.on '--exclude-history', 'Exclude history'
+    p.on '--info', 'Print info'
+    p.on '--browser=BROWSER', 'Browser path'
+    p.parse! into: opts
+  end
 
   if opts[:info]
     info

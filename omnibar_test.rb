@@ -42,34 +42,24 @@ class TestSearchItem < Test::Unit::TestCase
     assert search_engine.to_launcher_s == 'mdn: '
   end
 
-  def test_parse_url
-    bookmark = 'B example <https://example.com>'
-    history = 'H example <https://example.com> (2024-10-14)'
-    search_engine = 'mdn: background-color'
+  def test_parse
+    SearchItem.parse('B example <https://example.com>') do |url, st, se|
+      assert url == 'https://example.com'
+      assert st == nil
+      assert se == nil
+    end
 
-    assert SearchItem.parse_url(bookmark) == 'https://example.com'
-    assert SearchItem.parse_url(history) == 'https://example.com'
-    assert SearchItem.parse_url(search_engine) == nil
-  end
+    SearchItem.parse('H example <https://example.com> (2024-10-14)') do |url, st, se|
+      assert url == 'https://example.com'
+      assert st == nil
+      assert se == nil
+    end
 
-  def test_parse_search_term
-    bookmark = 'B example <https://example.com>'
-    history = 'H example <https://example.com> (2024-10-14)'
-    search_engine = 'mdn: background-color'
-
-    assert SearchItem.parse_search_term(bookmark) == nil
-    assert SearchItem.parse_search_term(history) == nil
-    assert SearchItem.parse_search_term(search_engine) == 'background-color'
-  end
-
-  def test_parse_search_engine
-    bookmark = 'B example <https://example.com>'
-    history = 'H example <https://example.com> (2024-10-14)'
-    search_engine = 'mdn: background-color'
-
-    assert SearchItem.parse_search_engine(bookmark) == nil
-    assert SearchItem.parse_search_engine(history) == nil
-    assert SearchItem.parse_search_engine(search_engine) == 'mdn'
+    SearchItem.parse('mdn: background-color') do |url, st, se|
+      assert url == nil
+      assert st == 'background-color'
+      assert se == 'mdn'
+    end
   end
 end
 
