@@ -17,12 +17,12 @@ require 'uri'
 
 class String
   def lsplit(char)
-    parts = split char
+    parts = split(char)
     [] << parts[0] << parts[1..].join(char)
   end
 
   def rsplit(char)
-    parts = split char
+    parts = split(char)
     [] << parts[0..-2].join(char) << parts[-1]
   end
 end
@@ -39,11 +39,11 @@ end
 
 module Parser
   def whitespace?(line)
-    /^$/.match line
+    /^$/.match(line)
   end
 
   def comment?(line)
-    /^#/.match line
+    /^#/.match(line)
   end
 end
 
@@ -53,8 +53,8 @@ class SearchItem
   attr_reader :title, :url, :date, :type
 
   def initialize(title, url, date, type)
-    unless TYPES.include? type
-      raise ArguementError.new "title must be one of #{TYPES.join ' '}"
+    unless TYPES.include?(type)
+      raise ArguementError.new("title must be one of #{TYPES.join(' ')}")
     end
 
     @title = title.strip
@@ -84,15 +84,15 @@ class SearchItem
       search_term = parse_search_term(str)
       search_engine = parse_search_engine(str)
 
-      block.call url, search_term, search_engine
+      block.call(url, search_term, search_engine)
     end
 
     private
 
     def parse_url(str)
-      return unless str[0] == 'H' or str[0] == 'B'
+      return unless str[0] == 'H' || str[0] == 'B'
 
-      match = /<(.*)>/.match str
+      match = /<(.*)>/.match(str)
 
       if match and match.captures.length > 0
         match.captures[0].strip
@@ -100,9 +100,9 @@ class SearchItem
     end
 
     def parse_search_term(str)
-      return if str[0] == 'H' or str[0] == 'B'
+      return if str[0] == 'H' || str[0] == 'B'
 
-      parts = str.lsplit ':'
+      parts = str.lsplit(':')
 
       if parts.length > 1
         parts[1].strip
@@ -110,9 +110,9 @@ class SearchItem
     end
 
     def parse_search_engine(str)
-      return if str[0] == 'H' or str[0] == 'B'
+      return if str[0] == 'H' || str[0] == 'B'
 
-      parts = str.lsplit ':'
+      parts = str.lsplit(':')
 
       if parts.length > 1
         parts[0].strip
@@ -145,44 +145,50 @@ end
 
 class UserDefined < Browser
   def self.history
-    hist_file = File.join ENV['XDG_CONFIG_HOME'], 'history'
+    hist_file = File.join(ENV['XDG_CONFIG_HOME'], 'history')
 
-    return [] unless File.exist? hist_file
+    return [] unless File.exist?(hist_file)
 
-    File.readlines(hist_file)
-      .filter { |line| !whitespace? line and !comment? line}
-      .map { |line| /([^<>]*)\s+<(.*)>/.match(line).captures }
-      .map { |title, url| SearchItem.new title, url, nil, :history }
+    File.readlines(hist_file).map do |line|
+      next if whitespace?(line) || comment?(line)
+
+      title, url = /([^<>]*)\s+<(.*)>/.match(line).captures
+      SearchItem.new(title, url, nil, :history)
+    end
   end
 
   def self.bookmarks
-    bm_file = File.join ENV['XDG_CONFIG_HOME'], 'bookmarks'
+    bm_file = File.join(ENV['XDG_CONFIG_HOME'], 'bookmarks')
 
-    return [] unless File.exist? bm_file
+    return [] unless File.exist?(bm_file)
 
-    File.readlines(bm_file)
-      .filter { |line| !whitespace? line and !comment? line}
-      .map { |line| /([^<>]*)\s+<(.*)>/.match(line).captures }
-      .map { |title, url| SearchItem.new title, url, nil, :bookmark }
+    File.readlines(bm_file).map do |line|
+      next if whitespace?(line) || comment?(line)
+
+      title, url = /([^<>]*)\s+<(.*)>/.match(line).captures
+      SearchItem.new(title, url, nil, :bookmark)
+    end
   end
 
   def self.search_engines
-    se_file = File.join ENV['XDG_CONFIG_HOME'], 'search_engines'
+    se_file = File.join(ENV['XDG_CONFIG_HOME'], 'search_engines')
 
-    return [] unless File.exist? se_file 
+    return [] unless File.exist?(se_file)
 
-    File.readlines(se_file)
-      .filter { |line| !whitespace? line and !comment? line}
-      .map { |line| line.lsplit '=' }
-      .map { |title, url| SearchItem.new title, url, nil, :search_engine }
+    File.readlines(se_file).map do |line|
+      next if whitespace?(line) || comment?(line)
+
+      title, url = line.lsplit('=')
+      SearchItem.new(title, url, nil, :search_engine)
+    end
   end
 end
 
 class Luakit < Browser
   def self.history
-    hist_file = File.join ENV['XDG_DATA_HOME'], 'luakit', 'history.db'
+    hist_file = File.join(ENV['XDG_DATA_HOME'], 'luakit', 'history.db')
 
-    return [] unless File.exist? hist_file 
+    return [] unless File.exist?(hist_file)
 
     query = <<~SQL
       SELECT title, uri, last_visit
@@ -190,23 +196,20 @@ class Luakit < Browser
       ORDER BY last_visit DESC;
     SQL
 
-    query_sql(hist_file, query)
-      .filter { |line| !whitespace? line and !comment? line }
-      .map { |line| line.split '|' }
-      .map { |item| SearchItem.new(
-        item[0..-3].join('|'),
-        item[-2],
-        Time.at(item[-1].to_i).to_s,
-        :history,
-      ) }
+    query_sql(hist_file, query).map do |line|
+      next if whitespace?(line) || comment?(line)
+
+      *title, url, date = line.split('|')
+      SearchItem.new(title.join('|'), url, Time.at(date.to_i).to_s, :history)
+    end
   end
 end
 
 class Qutebrowser < Browser
   def self.history
-    hist_file = File.join ENV['XDG_DATA_HOME'], 'qutebrowser', 'history.sqlite'
+    hist_file = File.join(ENV['XDG_DATA_HOME'], 'qutebrowser', 'history.sqlite')
 
-    return [] unless File.exist? hist_file 
+    return [] unless File.exist?(hist_file)
 
     query = <<~SQL
       SELECT title, url, atime 
@@ -214,29 +217,24 @@ class Qutebrowser < Browser
       ORDER BY atime DESC;
     SQL
 
-    query_sql(hist_file, query)
-      .filter { |line| !whitespace? line and !comment? line }
-      .map { |line| line.split '|' }
-      .map { |item| SearchItem.new(
-        item[0..-3].join('|'),
-        item[-2],
-        Time.at(item[-1].to_i).to_s,
-        :history,
-      ) }
+    query_sql(hist_file, query).map do |line|
+      next if whitespace?(line) || comment?(line)
+
+      *title, url, date = line.split('|')
+      SearchItem.new(title.join('|'), url, Time.at(date.to_i).to_s, :history)
+    end
   end
 
   def self.bookmarks
-    bm_file = File.join ENV['XDG_CONFIG_HOME'], 'qutebrowser', 'quickmarks'
+    bm_file = File.join(ENV['XDG_CONFIG_HOME'], 'qutebrowser', 'quickmarks')
 
-    puts "test"
-
-    return [] unless File.exist? bm_file
+    return [] unless File.exist?(bm_file)
 
     File.readlines(bm_file).map do |line|
       next if whitespace?(line) || comment?(line)
 
-      title, url = line.split ' '
-      SearchItem.new title, url, nil, :bookmark
+      title, url = line.split(' ')
+      SearchItem.new(title, url, nil, :bookmark)
     end
   end
 end
@@ -251,7 +249,7 @@ def extract_url(str, items)
     selected_se = search_engines.find { |s| s.title == se }
     default_se = search_engines.find { |s| s.title == '*' }
 
-    if str.start_with? 'localhost'
+    if str.start_with?('localhost')
       "http://#{str}"
     elsif SCHEMES.any? { |scheme| str.start_with? scheme }
       str
@@ -305,11 +303,11 @@ if __FILE__ == $0
 
   OptionParser.new do |p|
     p.banner = 'Usage: omnibar [OPTIONS]'
-    p.on '--exclude-bookmarks', 'Exclude bookmarks'
-    p.on '--exclude-history', 'Exclude history'
-    p.on '--info', 'Print info'
-    p.on '--browser=BROWSER', 'Browser path'
-    p.parse! into: opts
+    p.on('--exclude-bookmarks', 'Exclude bookmarks')
+    p.on('--exclude-history', 'Exclude history')
+    p.on('--info', 'Print info')
+    p.on('--browser=BROWSER', 'Browser path')
+    p.parse!(into: opts)
   end
 
   if opts[:info]
@@ -317,5 +315,5 @@ if __FILE__ == $0
     exit 0
   end
 
-  main opts
+  main(opts)
 end
