@@ -132,13 +132,14 @@ class Browser
 
     def all(exclude_bookmarks: false, exclude_history: false)
       bookmarks = self.subclasses.reduce([]) { |acc, b| acc + b.bookmarks }
-      history = self.subclasses.reduce([]) { |acc, b| acc + b.history}
-      search_engines = self.subclasses.reduce([]) { |acc, b| acc + b.search_engines}
+      history = self.subclasses.reduce([]) { |acc, b| acc + b.history }
+      search_engines = self.subclasses.reduce([]) { |acc, b| acc + b.search_engines }
 
       items = search_engines
       items += bookmarks unless exclude_bookmarks
       items += history unless exclude_history
-      items.compact
+
+      items.compact.uniq { |item| item.url }
     end
   end
 end
