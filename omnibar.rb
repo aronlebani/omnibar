@@ -202,6 +202,45 @@ class Luakit < Browser
   end
 end
 
+class Qutebrowser < Browser
+  def self.history
+    hist_file = File.join ENV['XDG_DATA_HOME'], 'qutebrowser', 'history.sqlite'
+
+    return [] unless File.exist? hist_file 
+
+    query = <<~SQL
+      SELECT title, url, atime 
+      FROM history
+      ORDER BY atime DESC;
+    SQL
+
+    query_sql(hist_file, query)
+      .filter { |line| !whitespace? line and !comment? line }
+      .map { |line| line.split '|' }
+      .map { |item| SearchItem.new(
+        item[0..-3].join('|'),
+        item[-2],
+        Time.at(item[-1].to_i).to_s,
+        :history,
+      ) }
+  end
+
+  def self.bookmarks
+    bm_file = File.join ENV['XDG_CONFIG_HOME'], 'qutebrowser', 'quickmarks'
+
+    puts "test"
+
+    return [] unless File.exist? bm_file
+
+    File.readlines(bm_file).map do |line|
+      next if whitespace?(line) || comment?(line)
+
+      title, url = line.split ' '
+      SearchItem.new title, url, nil, :bookmark
+    end
+  end
+end
+
 LAUNCHER = ['dmenu', '-i', '-l', '10', '-p', 'Search:']
 SCHEMES = ['http://', 'https://', 'file://']
 
