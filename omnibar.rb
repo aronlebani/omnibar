@@ -138,7 +138,7 @@ class Browser
       items = search_engines
       items += bookmarks unless exclude_bookmarks
       items += history unless exclude_history
-      items
+      items.compact
     end
   end
 end
