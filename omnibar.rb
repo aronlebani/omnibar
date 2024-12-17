@@ -17,13 +17,13 @@ require 'uri'
 
 class String
   def lsplit(char)
-    parts = split(char)
-    [] << parts[0] << parts[1..].join(char)
+    first, *rest = split(char)
+    [first, rest.join(char)]
   end
 
   def rsplit(char)
-    parts = split(char)
-    [] << parts[0..-2].join(char) << parts[-1]
+    *rest, last = split(char)
+    [rest.join(char), last]
   end
 end
 
@@ -48,13 +48,13 @@ module Parser
 end
 
 class SearchItem
-  TYPES = [:bookmark, :history, :search_engine]
+  TYPES = [:bookmark, :history, :search_engine].freeze
 
   attr_reader :title, :url, :date, :type
 
   def initialize(title, url, date, type)
     unless TYPES.include?(type)
-      raise ArguementError.new("title must be one of #{TYPES.join(' ')}")
+      raise ArguementError "title must be one of #{TYPES.join(' ')}"
     end
 
     @title = title.strip
@@ -92,31 +92,22 @@ class SearchItem
     def parse_url(str)
       return unless str[0] == 'H' || str[0] == 'B'
 
-      match = /<(.*)>/.match(str)
-
-      if match and match.captures.length > 0
-        match.captures[0].strip
-      end
+      url, _ = /<(.*)>/.match(str).captures
+      url&.strip
     end
 
     def parse_search_term(str)
       return if str[0] == 'H' || str[0] == 'B'
 
-      parts = str.lsplit(':')
-
-      if parts.length > 1
-        parts[1].strip
-      end
+      _, term = str.lsplit(':')
+      term&.strip
     end
 
     def parse_search_engine(str)
       return if str[0] == 'H' || str[0] == 'B'
 
-      parts = str.lsplit(':')
-
-      if parts.length > 1
-        parts[0].strip
-      end
+      se, _ = str.lsplit(':')
+      se&.strip
     end
   end
 end
@@ -131,15 +122,15 @@ class Browser
     def search_engines = []
 
     def all(exclude_bookmarks: false, exclude_history: false)
-      bookmarks = self.subclasses.reduce([]) { |acc, b| acc + b.bookmarks }
-      history = self.subclasses.reduce([]) { |acc, b| acc + b.history }
-      search_engines = self.subclasses.reduce([]) { |acc, b| acc + b.search_engines }
+      bookmarks = subclasses.reduce([]) { |acc, b| acc + b.bookmarks }
+      history = subclasses.reduce([]) { |acc, b| acc + b.history }
+      search_engines = subclasses.reduce([]) { |acc, b| acc + b.search_engines }
 
       items = search_engines
       items += bookmarks unless exclude_bookmarks
       items += history unless exclude_history
 
-      items.compact.uniq { |item| item.url }
+      items.compact.uniq(&:url)
     end
   end
 end
@@ -213,7 +204,7 @@ class Qutebrowser < Browser
     return [] unless File.exist?(hist_file)
 
     query = <<~SQL
-      SELECT title, url, atime 
+      SELECT title, url, atime
       FROM history
       ORDER BY atime DESC;
     SQL
@@ -240,8 +231,8 @@ class Qutebrowser < Browser
   end
 end
 
-LAUNCHER = ['dmenu', '-i', '-l', '10', '-p', 'Search:']
-SCHEMES = ['http://', 'https://', 'file://']
+LAUNCHER = ['dmenu', '-i', '-l', '10', '-p', 'Search:'].freeze
+SCHEMES = ['http://', 'https://', 'file://'].freeze
 
 def extract_url(str, items)
   search_engines = items.filter { |item| item.type == :search_engine }
@@ -273,7 +264,7 @@ def main(opts)
   )
 
   selection = Open3.popen3(*LAUNCHER) do |stdin, stdout|
-    stdin.puts items.map { |item| item.to_launcher_s }
+    stdin.puts items.map(&:to_launcher_s)
     stdin.close
     begin
       stdout.readline
