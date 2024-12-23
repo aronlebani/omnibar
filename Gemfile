@@ -6,5 +6,5 @@ gem 'open3'
 gem 'optparse'
 
 group :development do
-  gem 'test-unit'
+	gem 'test-unit'
 end
